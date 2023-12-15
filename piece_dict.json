@@ -1,14 +1,30 @@
 {
-    "r":"res\\image\\Chess_rdt60.png",
-    "b":"res\\image\\Chess_bdt60.png",
-    "n":"res\\image\\Chess_ndt60.png",
-    "k":"res\\image\\Chess_kdt60.png",
-    "q":"res\\image\\Chess_qdt60.png",
-    "p":"res\\image\\Chess_pdt60.png",
-    "R":"res\\image\\Chess_rlt60.png",
-    "B":"res\\image\\Chess_blt60.png",
-    "N":"res\\image\\Chess_nlt60.png",
-    "K":"res\\image\\Chess_klt60.png",
-    "Q":"res\\image\\Chess_qlt60.png",
-    "P":"res\\image\\Chess_plt60.png"
+    "0": {
+        "r": "res\\image\\Chess_rdt60.png",
+        "b": "res\\image\\Chess_bdt60.png",
+        "n": "res\\image\\Chess_ndt60.png",
+        "k": "res\\image\\Chess_kdt60.png",
+        "q": "res\\image\\Chess_qdt60.png",
+        "p": "res\\image\\Chess_pdt60.png",
+        "R": "res\\image\\Chess_rlt60.png",
+        "B": "res\\image\\Chess_blt60.png",
+        "N": "res\\image\\Chess_nlt60.png",
+        "K": "res\\image\\Chess_klt60.png",
+        "Q": "res\\image\\Chess_qlt60.png",
+        "P": "res\\image\\Chess_plt60.png"
+    },
+    "1": {
+        "r": "res\\image\\Chess_rlt60.png",
+        "b": "res\\image\\Chess_blt60.png",
+        "n": "res\\image\\Chess_nlt60.png",
+        "k": "res\\image\\Chess_klt60.png",
+        "q": "res\\image\\Chess_qlt60.png",
+        "p": "res\\image\\Chess_plt60.png",
+        "R": "res\\image\\Chess_rdt60.png",
+        "B": "res\\image\\Chess_bdt60.png",
+        "N": "res\\image\\Chess_ndt60.png",
+        "K": "res\\image\\Chess_kdt60.png",
+        "Q": "res\\image\\Chess_qdt60.png",
+        "P": "res\\image\\Chess_pdt60.png"
+    }
 }
