@@ -35,7 +35,7 @@ class ChessGame:
                                 ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
-                                [0, 0, 0, 0, 'k', 0, 0, 0], 
+                                [0, 0, 0, 0, 'b', 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
                                 ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], 
                                 ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']]
@@ -192,9 +192,29 @@ class ChessGame:
                     break
                 elif self.board_piece_pos[i][x].isupper() == piece.isupper():
                     break
+            
             return moves
         elif piece.upper() == 'B':
-            pass
+            # bishop moves diagonally, no ones knows why, people say it is racist but I think people are right
+            
+            all_moves = [
+                            zip(range(y+1, 8), range(x+1,8)),
+                            zip(range(y+1, 8), range(x-1, -1, -1)),
+                            zip(range(y-1, -1, -1), range(x+1, 8)),
+                            zip(range(y-1, -1, -1), range(x-1, -1, -1))
+                        ]
+            
+            for direction in all_moves:
+                for j, i in direction:
+                    if self.board_piece_pos[j][i] == 0:
+                        moves.append((i, j, 0))
+                    elif self.board_piece_pos[j][i].isupper() != piece.isupper():
+                        moves.append((i, j, 1))
+                        break
+                    elif self.board_piece_pos[j][i].isupper() == piece.isupper():
+                        break
+            return moves
+            
         elif piece.upper() == 'N':
             pass
         elif piece.upper() == 'K':
