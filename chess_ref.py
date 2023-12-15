@@ -26,7 +26,16 @@ class ChessGame:
 
         # Create the chess board
         self.board = [[0 for x in range(8)] for y in range(8)]
-        self.board_piece_pos = [[0 for x in range(8)] for y in range(8)]
+        # self.board_piece_pos = [[0 for x in range(8)] for y in range(8)]
+        self.board_piece_pos = [['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'], 
+                                ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
+                                ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], 
+                                ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']]
+        
 
         # Set up other game-related variables
         self.clock = pygame.time.Clock()
@@ -69,30 +78,22 @@ class ChessGame:
                     self.screen, self.board[row][col], [col * self.WIDTH / 8, row * self.HEIGHT / 8, self.WIDTH / 8, self.HEIGHT / 8]
                 )
 
-        # Placing the pieces on the chess board
-        row_, col_ = 0, 0
-        for i in self.PIECE_INFO:
-            if i == '/':
-                row_ += 1
-            elif i in '12345678'.split():
-                col_ += int(i)
-            else:
-                piece_img = pygame.image.load(self.piece_file_dict[i])
-                img_copy = piece_img.copy()
-                alpha = 255
-                img_copy.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
-                img_width = piece_img.get_width()
-                self.screen.blit(
-                    img_copy,
-                    (
-                        col_ * self.WIDTH / 8 + self.WIDTH / 16 - self.IMG_SIZE / 2,
-                        row_ * self.HEIGHT / 8 + self.HEIGHT / 16 - self.IMG_SIZE / 2,
-                    ),
-                )
-                self.board_piece_pos[row_][col_] = i
-                col_ += 1
-                if col_ >= 8:
-                    col_ = 0
+        for row in range(8):
+            for col in range(8):
+                if self.board_piece_pos[row][col]!=0:
+                    piece_img = pygame.image.load(self.piece_file_dict[self.board_piece_pos[row][col]])
+                    img_copy = piece_img.copy()
+                    alpha = 255
+                    img_copy.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
+                    self.screen.blit(
+                        img_copy,
+                        (
+                            col * self.WIDTH / 8 + self.WIDTH / 16 - self.IMG_SIZE / 2,
+                            row * self.HEIGHT / 8 + self.HEIGHT / 16 - self.IMG_SIZE / 2,
+                        ),
+                    )
+
+
 
         pygame.display.flip()
 
@@ -114,25 +115,25 @@ class ChessGame:
                     self.WIDTH / 8,
                     self.HEIGHT / 8,
                 )
-            pygame.draw.rect(self.screen, (255, 0, 0, 50), rect, 2)
+            pygame.draw.rect(self.screen, (255, 0, 0, 50), rect, 5)
 
     def draw_dragging_cursor(self, screen, board, selected_piece):
         if selected_piece:
             piece, x, y = self.get_square_under_mouse()
-            # print(x,y)
-            if x is not None:
-                rect = (
-                    self.BOARD_POS[0] + x * self.WIDTH / 8,
-                    self.BOARD_POS[1] + y * self.HEIGHT / 8,
-                    self.WIDTH / 8,
-                    self.HEIGHT / 8,
-                )
-                pygame.draw.rect(self.screen, (0, 250, 0, 50), rect, 2)
-            pygame.draw.line(screen, 
-                            pygame.Color('red'),
-                            (self.BOARD_POS[0] + selected_piece[1] * self.WIDTH / 8 +self.WIDTH/16,self.BOARD_POS[0] + selected_piece[2] * self.WIDTH / 8 +self.WIDTH/16), 
-                            (rect[0]+self.WIDTH/16, rect[1]+self.WIDTH/16),
-                            5)
+            if x is not None :
+                if x != selected_piece[1] or  y!=selected_piece[2]: 
+                    rect = (
+                        self.BOARD_POS[0] + x * self.WIDTH / 8,
+                        self.BOARD_POS[1] + y * self.HEIGHT / 8,
+                        self.WIDTH / 8,
+                        self.HEIGHT / 8,
+                    )
+                    pygame.draw.rect(self.screen, (0, 250, 0, 50), rect, 5)
+                    pygame.draw.line(screen, 
+                                    pygame.Color('red'),
+                                    (self.BOARD_POS[0] + selected_piece[1] * self.WIDTH / 8 +self.WIDTH/16,self.BOARD_POS[0] + selected_piece[2] * self.WIDTH / 8 +self.WIDTH/16), 
+                                    (rect[0]+self.WIDTH/16, rect[1]+self.WIDTH/16),
+                                    5)
 
             
 
@@ -140,23 +141,29 @@ class ChessGame:
 
     def run(self):
         selected_piece = None
-        drop_pos = None
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 
-                elif event.type == MOUSEBUTTONDOWN:
-                    # if piece != 0:
-                    #     selected_piece = (piece, x, y)
-                    piece, x, y = self.get_square_under_mouse()
-                    if piece!=0:
-                        selected_piece = (piece, x, y)
-                        # print(selected_piece)
                     
 
                 elif event.type == MOUSEBUTTONUP:
-                    pass
+                    cur_piece, cur_x, cur_y = self.get_square_under_mouse()
+                    if selected_piece:
+                        piece, x, y = selected_piece
+                        if x != cur_x or  y!=cur_y:
+                            self.board_piece_pos[cur_y][cur_x] = piece
+                            self.board_piece_pos[y][x] = 0
+                            selected_piece = None
+                        else:
+                            pass
+                elif event.type == MOUSEBUTTONDOWN:
+                    piece, x, y = self.get_square_under_mouse()
+                    if piece!=0 and selected_piece is None:
+                        selected_piece = (piece, x, y)
+                    elif not (x!=selected_piece[1] or y!=selected_piece[2]):
+                        selected_piece = None
                             
                 
                 elif event.type == MOUSEMOTION:
@@ -168,11 +175,21 @@ class ChessGame:
             if selected_piece:
                 self.draw_selected(self.screen, selected_piece[0], selected_piece[1], selected_piece[2])
                 self.draw_dragging_cursor(self.screen, self.board_piece_pos, selected_piece)
+            else:
+                _, x, y = self.get_square_under_mouse()
+                if x is not None :
+                    rect = (
+                        self.BOARD_POS[0] + x * self.WIDTH / 8,
+                        self.BOARD_POS[1] + y * self.HEIGHT / 8,
+                        self.WIDTH / 8,
+                        self.HEIGHT / 8,
+                    )
+                    pygame.draw.rect(self.screen, (0, 250, 0, 50), rect, 5)
 
             
 
             pygame.display.flip()
-            self.clock.tick(60)
+            self.clock.tick(1000)
 
         pygame.quit()
 
