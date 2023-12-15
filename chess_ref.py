@@ -33,9 +33,9 @@ class ChessGame:
         # self.board_piece_pos = [[0 for x in range(8)] for y in range(8)]
         self.board_piece_pos = [['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'], 
                                 ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'], 
-                                [0, 0, 0, 0, 0, 0, 0, 0], 
-                                [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 'b', 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
                                 ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], 
                                 ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']]
@@ -148,52 +148,34 @@ class ChessGame:
 
     def recommend_valid_moves(self, screen, selected_piece):
         # this function will return x, y of valid moves
+        # TODO: Update all moves to check if king is in check
         if selected_piece is None:
             return None
 
         piece, x, y = selected_piece
         moves = [] # see what is moves it is nothing but a list of valid moves. Now question is what is move, it is nothing
-                   # but a tuple of (x, y, 1|0) x and y are coordinate while 1|0 determine if this moves takes and takes and takes and takes
+                   # but a tuple of (x, y, 1|0) x and y are coordinate while 1|0 determine if this moves takes n takes n takes n takes
         if piece.upper() == 'R':
             # rook is very simple so yeah
-            # move it to the right
-            for i in range(x+1, 8):
-                if self.board_piece_pos[y][i] == 0:
-                    moves.append((i, y, 0))
-                elif self.board_piece_pos[y][i].isupper() != piece.isupper(): # riding on enemy 😏
-                    moves.append((i, y, 1))
-                    break
-                elif self.board_piece_pos[y][i].isupper() == piece.isupper():
-                    break
-            # move it to the left
-            for i in range(x-1, -1, -1):
-                if self.board_piece_pos[y][i] == 0:
-                    moves.append((i, y, 0))
-                elif self.board_piece_pos[y][i].isupper() != piece.isupper(): 
-                    moves.append((i, y, 1))
-                    break
-                elif self.board_piece_pos[y][i].isupper() == piece.isupper():
-                    break
-            # move it to the top
-            for i in range(y+1, 8):
-                if self.board_piece_pos[i][x] == 0:
-                    moves.append((x, i, 0))
-                elif self.board_piece_pos[i][x].isupper() != piece.isupper():
-                    moves.append((x, i, 1))
-                    break
-                elif self.board_piece_pos[i][x].isupper() == piece.isupper():
-                    break
-            # move it to the bottom
-            for i in range(y-1, -1, -1):
-                if self.board_piece_pos[i][x] == 0:
-                    moves.append((x, i, 0))
-                elif self.board_piece_pos[i][x].isupper() != piece.isupper():
-                    moves.append((x, i, 1))
-                    break
-                elif self.board_piece_pos[i][x].isupper() == piece.isupper():
-                    break
+            all_moves = [
+                            zip([y]*8, range(x+1, 8)),
+                            zip([y]*8, range(x-1, -1, -1)),
+                            zip(range(y+1, 8), [x]*8),
+                            zip(range(y-1, -1, -1), [x]*8)
+                        ]
             
+            for direction in all_moves:
+                for j, i in direction:
+                    if self.board_piece_pos[j][i] == 0:
+                        moves.append((i, j, 0))
+                    elif self.board_piece_pos[j][i].isupper() != piece.isupper():
+                        moves.append((i, j, 1))
+                        break
+                    elif self.board_piece_pos[j][i].isupper() == piece.isupper():
+                        break
+
             return moves
+            
         elif piece.upper() == 'B':
             # bishop moves diagonally, no ones knows why, people say it is racist but I think people are right
             
@@ -216,7 +198,25 @@ class ChessGame:
             return moves
             
         elif piece.upper() == 'N':
-            pass
+            all_moves = [
+                            [y-1, x+2],
+                            [y-2, x+1],
+                            [y-1, x-2],
+                            [y-2, x-1],
+                            [y+1, x-2],
+                            [y+1, x+2],
+                            [y+2, x+1],
+                            [y+2, x-1]
+                        ]
+            
+            for j, i in all_moves:
+                if 0 <= i < 8 and 0 <= j < 8:
+                    target_piece = self.board_piece_pos[j][i] 
+                    if target_piece == 0:
+                        moves.append((i, j, 0))
+                    elif target_piece.isupper() != piece.isupper():
+                        moves.append((i, j, 1))
+            return moves
         elif piece.upper() == 'K':
             # king is the weakest guy, you lose him, you lose it.
             # anyways so make the guy move everywhere and see where he can go, I will leave checkmate and castle for now
@@ -240,11 +240,48 @@ class ChessGame:
                     continue
             return moves
         elif piece.upper() == 'Q':
-            pass
+            all_moves = [
+                            zip([y]*8, range(x+1, 8)),
+                            zip([y]*8, range(x-1, -1, -1)),
+                            zip(range(y+1, 8), [x]*8),
+                            zip(range(y-1, -1, -1), [x]*8),
+                            zip(range(y+1, 8), range(x+1,8)),
+                            zip(range(y+1, 8), range(x-1, -1, -1)),
+                            zip(range(y-1, -1, -1), range(x+1, 8)),
+                            zip(range(y-1, -1, -1), range(x-1, -1, -1))
+                        ]
+            for direction in all_moves:
+                for j, i in direction:
+                    if self.board_piece_pos[j][i] == 0:
+                        moves.append((i, j, 0))
+                    elif self.board_piece_pos[j][i].isupper() != piece.isupper():
+                        moves.append((i, j, 1))
+                        break
+                    elif self.board_piece_pos[j][i].isupper() == piece.isupper():
+                        break
+            return moves
         elif piece.upper() == 'P':
-            # implement only simple front move
+            # implement only simple front
+            # since this stupid piece only moves in one direction then lets look if it is black or white
+            direction = -1 if piece.isupper() else 1
 
-            pass
+            if self.board_piece_pos[y+direction][x] == 0: # my soldiers move forward
+                moves.append((x, y+direction, 0))
+                if (direction == -1 and y == 6) or (direction == 1 and y == 1): 
+                    if self.board_piece_pos[y+2*direction][x] == 0: # my soldier rage
+                        moves.append((x, y+2*direction, 0))
+            for dx in [-1, 1]:
+                new_x = x+dx
+                new_y = y+direction
+                
+                if 0<=new_x <8 and 0<=new_y<8: # my soldiers capture diagonally
+                    target_piece = self.board_piece_pos[new_y][new_x]
+                    if target_piece!=0 and target_piece.isupper()!=piece.isupper():
+                        moves.append((new_x, new_y, 1)) 
+            
+            return moves
+            # TODO:en passant   
+
         return None
 
     def draw_valid_moves(self, moves):
