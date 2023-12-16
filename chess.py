@@ -30,6 +30,8 @@ class ChessGame:
 
         self.player_side = 0 # 0 : white and 1 : black
         self.king_check = [False, 0, 0]
+        self.white_castle = False
+        self.black_castle = False
 
         # Set the font for the text
         self.font = pygame.font.Font(None, 36)
@@ -208,6 +210,18 @@ class ChessGame:
                         moves.append((i, j, 0))
                     elif target_piece.color != piece.color:
                         moves.append((i, j, 1))
+
+            # now look for castle
+            # king should not be in check
+            if not piece.in_check:
+                # king should not have moved
+                if not piece.has_moved():
+                    # get the rook with which castle is possible
+                    castle_moves = self.get_castle_rook(piece.color, piece, x, y)
+                    if len(castle_moves)==0:
+                        pass
+                    else:
+                        moves.extend([(i, j, 0) for i, j, _ in castle_moves])
         elif piece.name == 'pawn':
             # since this stupid piece only moves in one direction then lets look if it is black or white
 
@@ -261,8 +275,50 @@ class ChessGame:
                                     if target_cell.name == 'king':
                                         moves_copy.remove(move)
             return moves_copy 
+        
         return moves
         # TODO: en passant 
+
+    def get_castle_rook(self, color, king, king_x, king_y):
+        moves = []
+
+        
+        for j in range(8):
+            for i in range(8):
+                piece = self.board_piece_pos[j][i]
+                if piece is None:
+                    continue
+                if piece.name == 'rook' and piece.color == color and piece.has_moved() == False:
+                    # print(color)
+                    # check if there is nothing between king and rook
+                    # get all coordinate between king and rook
+                    coord = []
+                    if i > king_x:
+                        for x in range(king_x+1, i+1):
+                            if self.board_piece_pos[king_y][x] is not None:
+                                break
+                            coord.append((x, king_y))
+
+                    elif i < king_x:
+                        for x in range(i+2, king_x): # TODO: this logic has to be seen again when left side castle is possible
+                            if self.board_piece_pos[king_y][x] is not None:
+                                break
+                            coord.append((x, king_y))
+                    # look if any of the coordinate is in check
+                    coord_copy = copy.deepcopy(coord)
+                    for x, y in coord:
+                        copy_board = copy.deepcopy(self.board_piece_pos)
+                        copy_board[y][x] = king
+                        copy_board[king_y][king_x] = None
+                        check = self.check_king_check(color, copy_board)
+                        if check[0]:
+                            break
+                        if x == coord[-1][0] and y == coord[-1][1]:
+                            for x, y in coord_copy:
+                                moves.append((x, y, 0))
+                            # rooks.append(piece)
+                                    
+        return moves
 
     def draw_valid_moves(self, moves):
         if moves is not None:
@@ -277,7 +333,6 @@ class ChessGame:
                     10
                 )
 
-
     def make_king_check_rect(self, x, y):
         pygame.draw.rect(
             self.screen,
@@ -291,25 +346,24 @@ class ChessGame:
             10
         )
 
-
-      
-    def check_king_check(self, color:0|1):
+    def check_king_check(self, color:0|1, board = None):
+        if board is None:
+            board = self.board_piece_pos
         for j in range(8):
             for i in range(8):
-                oppo_piece = self.board_piece_pos[j][i]
+                oppo_piece = board[j][i]
                 if oppo_piece is None:
                     continue
-                if oppo_piece.color != color:
+                if oppo_piece.color != color and oppo_piece.name!='king':
                     possible_moves = self.recommend_valid_moves(self.screen, (oppo_piece, i, j), False)
                     for new_moves in possible_moves:
                         if new_moves[2] == 1:
-                            target_cell = self.board_piece_pos[new_moves[1]][new_moves[0]]
+                            target_cell = board[new_moves[1]][new_moves[0]]
                             if target_cell.name == 'king':
                                 target_cell.in_check = True
                                 return (True, new_moves[0]*self.WIDTH/8, new_moves[1]*self.HEIGHT/8)
         return (False, 0, 0)
                         
-
     def run(self):
         selected_piece = None
         moves = None
@@ -325,20 +379,22 @@ class ChessGame:
                         piece, x, y = selected_piece
                         if x != cur_x or  y!=cur_y:
                             self.board_piece_pos[cur_y][cur_x] = piece
+                            if piece.name == 'king' and abs(x - cur_x) == 2:
+                                # castle has happened
+                                if cur_x > x:
+                                    # right side castle
+                                    self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
+                                    self.board_piece_pos[y][7] = None
+                                else:
+                                    # left side castle
+                                    self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
+                                    self.board_piece_pos[y][0] = None
+
+                                    
+                            piece.set_has_moved(True)
                             print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
                             print("Now it is turn of ", self.white_or_black)
                             self.white_or_black = (self.white_or_black + 1) % 2
-                            # moves = self.recommend_valid_moves(self.screen, (piece, cur_x, cur_y))
-                            # # print("possible moves are : ", moves)
-                            # for move in moves:
-                            #     if move[2]==1:
-                            #         target_cell = self.board_piece_pos[move[1]][move[0]]
-                            #         # print("target cell is :", target_cell)
-                            #         if target_cell.name == 'king':
-                            #             target_cell.in_check = True
-                            #             print(target_cell.color, target_cell.in_check)
-                            #             break
-                            # moves = None
                             self.board_piece_pos[y][x] = None
                             selected_piece = None
                         else:
@@ -349,6 +405,7 @@ class ChessGame:
                     if piece!=None and selected_piece is None:
                         selected_piece = (piece, x, y)
                         moves = self.recommend_valid_moves(self.screen, selected_piece)
+                        print(moves)
                         # print(moves)
                     elif selected_piece is not None:
                         # check if selected cell comes in valid move
@@ -382,7 +439,10 @@ class ChessGame:
 
             self.screen.fill(self.WHITE)
             self.make_UI_and_place_piece()
-            check_check = self.check_king_check((self.white_or_black+1)%2)
+            check_check = self.check_king_check(0)
+            if check_check[0]:
+                self.make_king_check_rect(check_check[1], check_check[2])
+            check_check = self.check_king_check(1)
             if check_check[0]:
                 self.make_king_check_rect(check_check[1], check_check[2])
             if selected_piece:
