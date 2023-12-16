@@ -138,9 +138,3 @@ class pawn(chess_piece):
                         [y+self.direction, x] # normal
                     ]
         return all_moves
-
-
-# define a rook
-r = rook(0)
-# get the name of the piece
-print(r.name)

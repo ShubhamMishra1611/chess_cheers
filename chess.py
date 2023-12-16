@@ -4,10 +4,14 @@ import json
 import numpy as np
 import chess_initial
 from chess_piece import rook, bishop, knight, pawn, queen, king, chess_piece
+import copy
+
 class ChessGame:
     def __init__(self):
         # Initialize Pygame
         pygame.init()
+
+        self.white_or_black = 1 # 0 : white and 1 : black
 
         # Set the dimensions of the board
         self.WIDTH = 800
@@ -24,7 +28,8 @@ class ChessGame:
         self.BLUE = (0, 0, 223)
         self.RED = (223, 15, 0)
 
-        self.player_side = 1 # 0 : white and 1 : black
+        self.player_side = 0 # 0 : white and 1 : black
+        self.king_check = [False, 0, 0]
 
         # Set the font for the text
         self.font = pygame.font.Font(None, 36)
@@ -69,6 +74,7 @@ class ChessGame:
         self.make_UI_and_place_piece()
 
     def get_pieces(self)->list[list[chess_piece]]:
+        # return chess_initial.board_white
         if self.player_side == 0:
             return chess_initial.board_white
         else:
@@ -155,11 +161,14 @@ class ChessGame:
                                     (rect[0]+self.WIDTH/16, rect[1]+self.WIDTH/16),
                                     5)
 
-    def recommend_valid_moves(self, screen, selected_piece):
+    def recommend_valid_moves(self, screen, selected_piece, look_for_check = True, board = None):
         # this function will return x, y of valid moves
         # TODO: Update all moves to check if king is in check
         if selected_piece is None:
             return None
+        
+        if board == None:
+            board = self.board_piece_pos
 
         piece, x, y = selected_piece
         moves = [] # see what is moves it is nothing but a list of valid moves. Now question is what is move, it is nothing
@@ -169,43 +178,40 @@ class ChessGame:
             # these guys are just awesome         
             for direction in all_moves:
                 for j, i in direction:
-                    if self.board_piece_pos[j][i] == None:
+                    if board[j][i] == None:
                         moves.append((i, j, 0))
-                    elif self.board_piece_pos[j][i].color != piece.color:
+                    elif board[j][i].color != piece.color:
                         moves.append((i, j, 1))
                         break
-                    elif self.board_piece_pos[j][i].color == piece.color:
+                    elif board[j][i].color == piece.color:
                         break
 
-            return moves
-        if piece.name == 'knight':
+        elif piece.name == 'knight':
             # knight is weird, he will fork you
             
             for j, i in all_moves:
                 if 0 <= i < 8 and 0 <= j < 8:
-                    target_piece = self.board_piece_pos[j][i] 
+                    target_piece = board[j][i] 
                     if target_piece == None:
                         moves.append((i, j, 0))
                     elif target_piece.color != piece.color:
                         moves.append((i, j, 1))
 
-            return moves
-        if piece.name == 'king':
+        elif piece.name == 'king':
             # king is the weakest guy, you lose him, you lose it.
             # anyways so make the guy move everywhere and see where he can go, I will leave checkmate and castle for now
             # TODO: look for checkmate and castle
             for j, i in all_moves:
                 if 0 <= i < 8 and 0 <= j < 8:
-                    target_piece = self.board_piece_pos[j][i] 
+                    target_piece = board[j][i] 
                     if target_piece == None:
                         moves.append((i, j, 0))
                     elif target_piece.color != piece.color:
                         moves.append((i, j, 1))
-            return moves
-        if piece.name == 'pawn':
+        elif piece.name == 'pawn':
             # since this stupid piece only moves in one direction then lets look if it is black or white
 
-#             player    color    direction
+            #  player    color    direction
             # 0 0 -1
             # 0 1 1
             # 1 0 1
@@ -218,10 +224,10 @@ class ChessGame:
                 direction = 1
             piece.direction = direction
             
-            if self.board_piece_pos[y+direction][x] == None: # my soldiers move forward
+            if board[y+direction][x] == None: # my soldiers move forward
                 moves.append((x, y+direction, 0))
                 if (direction == -1 and y == 6) or (direction == 1 and y == 1): 
-                    if self.board_piece_pos[y+2*direction][x] == None: # my soldier rage
+                    if board[y+2*direction][x] == None: # my soldier rage
                         moves.append((x, y+2*direction, 0))
 
             for dx in [-1, 1]:
@@ -229,10 +235,33 @@ class ChessGame:
                 new_y = y+direction
                 
                 if 0<=new_x <8 and 0<=new_y<8:
-                    target_piece = self.board_piece_pos[new_y][new_x]
+                    target_piece = board[new_y][new_x]
                     if target_piece!=None and target_piece.color!=piece.color:
                         moves.append((new_x, new_y, 1))
-            return moves
+        if look_for_check == True:
+            moves_copy = copy.deepcopy(moves)
+            # take each move
+            # now get the moves for opposite side piece
+            # check if any move of there has our king in attack
+            for move in moves:
+                copy_board = copy.deepcopy(self.board_piece_pos)
+            
+                copy_board[move[1]][move[0]] = piece
+                copy_board[y][x] = None
+                for j in range(8):
+                    for i in range(8):
+                        oppo_piece = copy_board[j][i]
+                        if oppo_piece is None:
+                            continue
+                        if oppo_piece.color != piece.color:
+                            possible_moves = self.recommend_valid_moves(self.screen, (oppo_piece, i, j), False, copy_board)
+                            for new_moves in possible_moves:
+                                if new_moves[2] == 1:
+                                    target_cell = copy_board[new_moves[1]][new_moves[0]]
+                                    if target_cell.name == 'king':
+                                        moves_copy.remove(move)
+            return moves_copy 
+        return moves
         # TODO: en passant 
 
     def draw_valid_moves(self, moves):
@@ -248,10 +277,44 @@ class ChessGame:
                     10
                 )
 
+
+    def make_king_check_rect(self, x, y):
+        pygame.draw.rect(
+            self.screen,
+            self.BLACK,
+            (
+                x,
+                y,
+                self.WIDTH / 8,
+                self.HEIGHT / 8,
+            ),
+            10
+        )
+
+
+      
+    def check_king_check(self, color:0|1):
+        for j in range(8):
+            for i in range(8):
+                oppo_piece = self.board_piece_pos[j][i]
+                if oppo_piece is None:
+                    continue
+                if oppo_piece.color != color:
+                    possible_moves = self.recommend_valid_moves(self.screen, (oppo_piece, i, j), False)
+                    for new_moves in possible_moves:
+                        if new_moves[2] == 1:
+                            target_cell = self.board_piece_pos[new_moves[1]][new_moves[0]]
+                            if target_cell.name == 'king':
+                                target_cell.in_check = True
+                                return (True, new_moves[0]*self.WIDTH/8, new_moves[1]*self.HEIGHT/8)
+        return (False, 0, 0)
+                        
+
     def run(self):
         selected_piece = None
         moves = None
         while self.running:
+            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
@@ -262,6 +325,20 @@ class ChessGame:
                         piece, x, y = selected_piece
                         if x != cur_x or  y!=cur_y:
                             self.board_piece_pos[cur_y][cur_x] = piece
+                            print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
+                            print("Now it is turn of ", self.white_or_black)
+                            self.white_or_black = (self.white_or_black + 1) % 2
+                            # moves = self.recommend_valid_moves(self.screen, (piece, cur_x, cur_y))
+                            # # print("possible moves are : ", moves)
+                            # for move in moves:
+                            #     if move[2]==1:
+                            #         target_cell = self.board_piece_pos[move[1]][move[0]]
+                            #         # print("target cell is :", target_cell)
+                            #         if target_cell.name == 'king':
+                            #             target_cell.in_check = True
+                            #             print(target_cell.color, target_cell.in_check)
+                            #             break
+                            # moves = None
                             self.board_piece_pos[y][x] = None
                             selected_piece = None
                         else:
@@ -274,19 +351,30 @@ class ChessGame:
                         moves = self.recommend_valid_moves(self.screen, selected_piece)
                         # print(moves)
                     elif selected_piece is not None:
-                        if not (x!=selected_piece[1] or y!=selected_piece[2]):
+                        # check if selected cell comes in valid move
+                        valid_move_or_not = lambda x, y: any(t[0]==x and t[1]==y for t in moves)
+                        # checking_check = self.check_king_check(piece)
+                        # if not checking_check: # this means this move will cause own king to go in check hence invalid move
+                        #     selected_piece = None
+                        # if checking_check is None:
+                        #     pass
+                        if not valid_move_or_not(x, y):
                             selected_piece = None
-                        # if selected_piece is not None:
-                        #     print("bhai ho gya")
-                        #     for move in moves:
-                        #         if (selected_piece!=None) and ([x, y] != [selected_piece[1], selected_piece[2]]):
-                        #             selected_piece = None 
                         else:
-                            if selected_piece[0].name == 'pawn': # checking for promotion
+                            if selected_piece[0].name == 'pawn':
                                 if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
                                     self.board_piece_pos[y][x] = queen(selected_piece[0].color)
                                     self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
                                     selected_piece = None
+                            # pass
+                        # if not (x!=selected_piece[1] or y!=selected_piece[2]):
+                        #     selected_piece = None
+                        # else:
+                        #     if selected_piece[0].name == 'pawn': # checking for promotion
+                        #         if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
+                        #             self.board_piece_pos[y][x] = queen(selected_piece[0].color)
+                        #             self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
+                        #             selected_piece = None
                             
                 
                 elif event.type == MOUSEMOTION:
@@ -294,10 +382,12 @@ class ChessGame:
 
             self.screen.fill(self.WHITE)
             self.make_UI_and_place_piece()
+            check_check = self.check_king_check((self.white_or_black+1)%2)
+            if check_check[0]:
+                self.make_king_check_rect(check_check[1], check_check[2])
             if selected_piece:
                 self.draw_selected(self.screen, selected_piece[0], selected_piece[1], selected_piece[2])
                 self.draw_dragging_cursor(self.screen, self.board_piece_pos, selected_piece)
-                # moves = self.recommend_valid_moves(self.screen, selected_piece)
                 self.draw_valid_moves(moves)
             else:
                 _, x, y = self.get_square_under_mouse()
