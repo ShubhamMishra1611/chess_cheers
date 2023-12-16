@@ -33,7 +33,7 @@ class ChessGame:
         # self.board_piece_pos = [[0 for x in range(8)] for y in range(8)]
         self.board_piece_pos = [['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'], 
                                 ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'], 
-                                [0, 0, 0, 0, 'b', 0, 0, 0], 
+                                [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
                                 [0, 0, 0, 0, 0, 0, 0, 0], 
