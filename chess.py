@@ -11,7 +11,7 @@ class ChessGame:
         # Initialize Pygame
         pygame.init()
 
-        self.white_or_black = 1 # 0 : white and 1 : black
+        self.white_or_black = 0 # 0 : white and 1 : black
 
         # Set the dimensions of the board
         self.WIDTH = 800
@@ -27,11 +27,14 @@ class ChessGame:
         self.L_GREEN = (230, 231, 202)
         self.BLUE = (0, 0, 223)
         self.RED = (223, 15, 0)
+        self.YELLOW = (255,255,0)
+        self.ORANGE = (255,165,0)
 
         self.player_side = 0 # 0 : white and 1 : black
         self.king_check = [False, 0, 0]
         self.white_castle = False
         self.black_castle = False
+        self.enpassant_material = [None, None, None] # color, x, y
 
         # Set the font for the text
         self.font = pygame.font.Font(None, 36)
@@ -76,7 +79,7 @@ class ChessGame:
         self.make_UI_and_place_piece()
 
     def get_pieces(self)->list[list[chess_piece]]:
-        # return chess_initial.board_white
+        # return chess_initial.en_passant
         if self.player_side == 0:
             return chess_initial.board_white
         else:
@@ -222,6 +225,7 @@ class ChessGame:
                         pass
                     else:
                         moves.extend([(i, j, 0) for i, j, _ in castle_moves])
+
         elif piece.name == 'pawn':
             # since this stupid piece only moves in one direction then lets look if it is black or white
 
@@ -251,7 +255,17 @@ class ChessGame:
                 if 0<=new_x <8 and 0<=new_y<8:
                     target_piece = board[new_y][new_x]
                     if target_piece!=None and target_piece.color!=piece.color:
-                        moves.append((new_x, new_y, 1))
+                        moves.append((new_x, new_y, 1)) 
+                pass
+            # look for en passant
+            if self.enpassant_material[0] != None:
+            # look my pawn is in third file
+            # look if there is a pawn in the side of my pawn
+            # look if the pawn has just moved twice cell
+                if self.enpassant_material[0] != piece.color and y==self.enpassant_material[2] and abs(x-self.enpassant_material[1])==1:
+            # if all are yes then just simply append this move on moves list
+                    moves.append((x-(x-self.enpassant_material[1]), y+direction, 2)) # I am adding 2 here instead of 1, cause it might cause the issue while checking for check and will look into cell that has 1 but has not piece in the cell.
+
         if look_for_check == True:
             moves_copy = copy.deepcopy(moves)
             # take each move
@@ -321,11 +335,17 @@ class ChessGame:
         return moves
 
     def draw_valid_moves(self, moves):
+        color_map = {
+            0:self.BLUE,
+            1:self.RED,
+            2:self.YELLOW,
+            3:self.ORANGE
+        }
         if moves is not None:
             for x, y, i in moves:
                 pygame.draw.circle(
                     self.screen,
-                    self.BLUE if i == 0 else self.RED,
+                    color_map[i],
                     (
                         self.BOARD_POS[0] + x * self.WIDTH / 8 + self.WIDTH / 16, 
                         self.BOARD_POS[1] + y * self.HEIGHT / 8 + self.HEIGHT / 16
@@ -389,8 +409,11 @@ class ChessGame:
                                     # left side castle
                                     self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
                                     self.board_piece_pos[y][0] = None
-
-                                    
+                            elif piece.name == 'pawn' and abs(y-cur_y) == 2:
+                                piece.has_moved_two = True
+                                self.enpassant_material = [piece.color, cur_x, cur_y]
+                            if self.enpassant_material[0]==self.white_or_black:
+                                self.enpassant_material = [None, None, None]
                             piece.set_has_moved(True)
                             print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
                             print("Now it is turn of ", self.white_or_black)
@@ -405,7 +428,7 @@ class ChessGame:
                     if piece!=None and selected_piece is None:
                         selected_piece = (piece, x, y)
                         moves = self.recommend_valid_moves(self.screen, selected_piece)
-                        print(moves)
+                        print("Possible moves: ", moves)
                         # print(moves)
                     elif selected_piece is not None:
                         # check if selected cell comes in valid move
@@ -420,7 +443,7 @@ class ChessGame:
                         else:
                             if selected_piece[0].name == 'pawn':
                                 if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
-                                    self.board_piece_pos[y][x] = queen(selected_piece[0].color)
+                                    self.board_piece_pos[y][x] = queen(selected_piece[0].color) # TODO: add code to ask to which piece to promote to 
                                     self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
                                     selected_piece = None
                             # pass
