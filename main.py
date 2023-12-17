@@ -1,4 +1,4 @@
-from chess_ref import ChessGame
+from chess import ChessGame
 
 if __name__ == '__main__':
     chess_game = ChessGame()
