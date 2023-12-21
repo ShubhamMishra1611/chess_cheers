@@ -6,8 +6,17 @@ import chess_initial
 from chess_piece import rook, bishop, knight, pawn, queen, king, chess_piece
 import copy
 from config import *
+import tkinter as tk
+from tkinter import simpledialog, messagebox
+from promotion_box import PromotionDialog
+
 
 DEBUG = False
+
+SIMPLE = 0
+CAPTURE = 1
+EN_PASSANT = 2
+CHECK = 3
 
 class ChessGame:
     def __init__(self):
@@ -102,10 +111,11 @@ class ChessGame:
             for col in range(8):
                 target_piece = self.board_piece_pos[row][col]
                 if target_piece!=None:
-                    self.loc_of_piece_list.append(target_piece)
+                    self.loc_of_piece_list.append((row, col))
 
     def get_pieces(self)->list[list[chess_piece]]:
         # return chess_initial.en_passant
+        return chess_initial.mate_in_one
         if self.player_side == 0:
             return chess_initial.board_white
         else:
@@ -290,7 +300,6 @@ class ChessGame:
             # look if there is a pawn in the side of my pawn
             # look if the pawn has just moved twice cell
                 if self.enpassant_material[0] != piece.color and y==self.enpassant_material[2] and abs(x-self.enpassant_material[1])==1:
-            # if all are yes then just simply append this move on moves list
                     moves.append((x-(x-self.enpassant_material[1]), y+direction, 2)) # I am adding 2 here instead of 1, cause it might cause the issue while checking for check and will look into cell that has 1 but has not piece in the cell.
 
         if look_for_check == True:
@@ -315,10 +324,9 @@ class ChessGame:
                                     target_cell = copy_board[new_moves[1]][new_moves[0]]
                                     if target_cell.name == 'king':
                                         moves_copy.remove(move)
-            return moves_copy 
+            return moves_copy
         
         return moves
-        # TODO: en passant 
 
     def get_castle_rook(self, color, king, king_x, king_y):
         moves = []
@@ -411,14 +419,16 @@ class ChessGame:
                                 return (True, new_moves[0]*self.WIDTH/8, new_moves[1]*self.HEIGHT/8)
         return (False, 0, 0)
 
-    def move_piece(self, piece:chess_piece, to_xy:list):
+    def move_piece(self, piece:chess_piece, to_xy:list, type_move:int = None):
         '''This function will move the piece to the given coordinate'''
+        # print("Valid enpassant:", self.enpassant_material)
         cur_x, cur_y = to_xy[0], to_xy[1] # cur_y means the y, x coordinate which was selected by user
         x, y = piece.board_x, piece.board_y
         if x!=cur_x or y!=cur_y:
             if piece.name == 'king': # check if the case is for castling
                 if cur_x > x:
                     # right side castle
+                    print("hehe castle")
                     self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
                     self.board_piece_pos[y][7] = None
                 else:
@@ -428,14 +438,18 @@ class ChessGame:
             if piece.name == 'pawn': # check if this is promotion
                 if (piece.direction == 1 and cur_y == 7) or (piece.direction == -1 and cur_y == 0):
                     piece = queen(piece.color)
-                    # self.board_piece_pos[cur_y][cur_x] = queen(piece.color)
                 elif abs(y - cur_y) == 2:
-                    self.enpassant_material = [piece.color, x, y]
-            if self.enpassant_material[0] == self.white_or_black:
+                    self.enpassant_material = [piece.color, cur_x, cur_y]
+                    # print("the piece is elligible for en passant")
+
+            if type_move == 2:
+                self.board_piece_pos[self.enpassant_material[2]][self.enpassant_material[1]] = None
+            if self.enpassant_material[0] != self.white_or_black:
                 self.enpassant_material = [None, None, None]
+
             
             piece.set_has_moved(True)
-            print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
+            # print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
             self.white_or_black = (self.white_or_black+1)%2
             self.board_piece_pos[cur_y][cur_x] = piece
             self.board_piece_pos[y][x]= None
@@ -444,110 +458,104 @@ class ChessGame:
         else:
             return False
 
+    def update_UI(self, selected_piece, moves):
+        self.screen.fill(self.WHITE)
+        self.make_UI_and_place_piece()
+        # check for checkmate
+        # if self.check_for_checkmate(0):
+        #     messagebox.showinfo("Checkmate", "Black wins")
+        #     self.running = False
+        # elif self.check_for_checkmate(1):
+        #     messagebox.showinfo("Checkmate", "White wins")
+        #     self.running = False
+
+
+        check_check = self.check_king_check(0)
+        if check_check[0]:
+            self.make_king_check_rect(check_check[1], check_check[2])
+        check_check = self.check_king_check(1)
+        if check_check[0]:
+            self.make_king_check_rect(check_check[1], check_check[2])
+        if selected_piece:
+            self.draw_selected(self.screen, selected_piece[0], selected_piece[1], selected_piece[2])
+            self.draw_dragging_cursor(self.screen, self.board_piece_pos, selected_piece)
+            self.draw_valid_moves(moves)
+        else:
+            _, x, y = self.get_square_under_mouse()
+            if x is not None :
+                rect = (
+                    self.BOARD_POS[0] + x * self.WIDTH / 8,
+                    self.BOARD_POS[1] + y * self.HEIGHT / 8,
+                    self.WIDTH / 8,
+                    self.HEIGHT / 8,
+                )
+                pygame.draw.rect(self.screen, (0, 250, 0, 50), rect, 5)
+
+        
+
+        pygame.display.flip()
+
+    # def check_for_checkmate(self, color):
+    #     # check if king is in check
+    #     king_check = self.check_king_check(color)
+
+        
+    #     # check if any piece can save the king
+    #     king_x, king_y = king_check[1], king_check[2]
+    #     print(king_x, king_y)
+    #     king = self.board_piece_pos[king_y][king_x]
+    #     # check if for the piece with same color there is any move left
+    #     all_move = []
+    #     for piece in self.loc_of_piece_list:
+    #         if piece.color == king.color:
+    #             moves = self.recommend_valid_moves(self.screen, (piece, piece.board_x, piece.board_y))
+    #             all_move.extend(moves)
+    #     if len(all_move) == 0:
+    #         return True
+    #     return False
+
     def run(self):
         selected_piece = None
         moves = None
+        valid_move_or_not = lambda x, y: any(t[0]==x and t[1]==y for t in moves)
+        def valid_move(c_x, c_y):
+            for x, y, t  in moves:
+                if c_x == x and c_y == y:
+                    return True, t
+            return False, None
         while self.running:
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 
-                elif event.type == MOUSEBUTTONUP:
-                    _, cur_x, cur_y = self.get_square_under_mouse()
-                    if selected_piece:
-                        piece, x, y = selected_piece
-                        res = self.move_piece(piece, (cur_x, cur_y))
-                        if res:selected_piece = None
-                        # if x != cur_x or  y!=cur_y:
-                        #     self.board_piece_pos[cur_y][cur_x] = piece
-                        #     if piece.name == 'king' and abs(x - cur_x) == 2:
-                        #         # castle has happened
-                        #         if cur_x > x:
-                        #             # right side castle
-                        #             self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
-                        #             self.board_piece_pos[y][7] = None
-                        #         else:
-                        #             # left side castle
-                        #             self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
-                        #             self.board_piece_pos[y][0] = None
-                        #     elif piece.name == 'pawn' and abs(y-cur_y) == 2:
-                        #         piece.has_moved_two = True
-                        #         self.enpassant_material = [piece.color, cur_x, cur_y]
-                        #     if self.enpassant_material[0]==self.white_or_black:
-                        #         self.enpassant_material = [None, None, None]
-                        #     piece.set_has_moved(True)
-                        #     print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
-                        #     print("Now it is turn of ", self.white_or_black)
-                        #     self.white_or_black = (self.white_or_black + 1) % 2
-                        #     self.board_piece_pos[y][x] = None
-                        #     selected_piece = None
-                        # else:
-                        #     pass
-
                 elif event.type == MOUSEBUTTONDOWN:
                     piece, x, y = self.get_square_under_mouse()
                     if piece!=None and selected_piece is None:
                         selected_piece = (piece, x, y)
-                        moves = self.recommend_valid_moves(self.screen, selected_piece)
-                        print("Possible moves: ", moves)
-                        # print(moves)
-                    elif selected_piece is not None:
-                        # check if selected cell comes in valid move
-                        valid_move_or_not = lambda x, y: any(t[0]==x and t[1]==y for t in moves)
-                        # checking_check = self.check_king_check(piece)
-                        # if not checking_check: # this means this move will cause own king to go in check hence invalid move
-                        #     selected_piece = None
-                        # if checking_check is None:
-                        #     pass
-                        if not valid_move_or_not(x, y):
+                        # check if selected piece is equal to the player side
+                        if piece.color != self.white_or_black:
                             selected_piece = None
-                        # else:
-                            # if selected_piece[0].name == 'pawn':
-                            #     if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
-                            #         self.board_piece_pos[y][x] = queen(selected_piece[0].color) # TODO: add code to ask to which piece to promote to 
-                            #         self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
-                            #         selected_piece = None
-                            # pass
-                        # if not (x!=selected_piece[1] or y!=selected_piece[2]):
-                        #     selected_piece = None
-                        # else:
-                        #     if selected_piece[0].name == 'pawn': # checking for promotion
-                        #         if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
-                        #             self.board_piece_pos[y][x] = queen(selected_piece[0].color)
-                        #             self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
-                        #             selected_piece = None
-                            
+                        else:
+                            moves = self.recommend_valid_moves(self.screen, selected_piece)
+                        # print("Possible moves: ", moves)
+                    elif selected_piece is not None:
+                        if not valid_move_or_not(x, y):  # check if selected cell comes in valid move
+                            selected_piece = None
                 
+                elif event.type == MOUSEBUTTONUP:
+                    _, cur_x, cur_y = self.get_square_under_mouse()
+                    if selected_piece:
+                        piece, x, y = selected_piece
+                        #TODO: do something to avoid invalid move while dragging teh piece
+                        check_valid_move = valid_move(cur_x, cur_y)
+                        res = self.move_piece(piece, (cur_x, cur_y), check_valid_move[1])
+                        if res:selected_piece = None
                 elif event.type == MOUSEMOTION:
                     pass
+            self.update_UI(selected_piece, moves)
 
-            self.screen.fill(self.WHITE)
-            self.make_UI_and_place_piece()
-            check_check = self.check_king_check(0)
-            if check_check[0]:
-                self.make_king_check_rect(check_check[1], check_check[2])
-            check_check = self.check_king_check(1)
-            if check_check[0]:
-                self.make_king_check_rect(check_check[1], check_check[2])
-            if selected_piece:
-                self.draw_selected(self.screen, selected_piece[0], selected_piece[1], selected_piece[2])
-                self.draw_dragging_cursor(self.screen, self.board_piece_pos, selected_piece)
-                self.draw_valid_moves(moves)
-            else:
-                _, x, y = self.get_square_under_mouse()
-                if x is not None :
-                    rect = (
-                        self.BOARD_POS[0] + x * self.WIDTH / 8,
-                        self.BOARD_POS[1] + y * self.HEIGHT / 8,
-                        self.WIDTH / 8,
-                        self.HEIGHT / 8,
-                    )
-                    pygame.draw.rect(self.screen, (0, 250, 0, 50), rect, 5)
-
-            
-
-            pygame.display.flip()
+            # pygame.display.flip()
             self.clock.tick(1000)
 
         pygame.quit()
