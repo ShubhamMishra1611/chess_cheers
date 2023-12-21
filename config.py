@@ -1,11 +1,15 @@
+white_or_black = 0 # 0 : white and 1 : black
 WIDTH = 800
 HEIGHT = 800
 IMG_SIZE = 60
-
-BOARD_POS = (0, 0) # required for keeping offset
-
+BOARD_POS = (0, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
 GREEN = (115, 144, 83)
 L_GREEN = (230, 231, 202)
+BLUE = (0, 0, 223)
+RED = (223, 15, 0)
+YELLOW = (255,255,0)
+ORANGE = (255,165,0)
+player_side = 0 # 0 : white and 1 : black

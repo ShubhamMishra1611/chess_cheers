@@ -5,6 +5,9 @@ import numpy as np
 import chess_initial
 from chess_piece import rook, bishop, knight, pawn, queen, king, chess_piece
 import copy
+from config import *
+
+DEBUG = False
 
 class ChessGame:
     def __init__(self):
@@ -51,6 +54,9 @@ class ChessGame:
         #                         ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], 
         #                         ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']]
         self.board_piece_pos = self.get_pieces()
+        self.loc_of_piece_list = [] # this is list of all position that has piece on it
+        self.update_piece_list()
+
         
 
         # Set up other game-related variables
@@ -77,6 +83,26 @@ class ChessGame:
         # Initialize the chess game
         self.init()
         self.make_UI_and_place_piece()
+        if DEBUG:
+            # checking if all pieces are placed correctly
+            for y in range(8):
+                for x in range(8):
+                    tar_pc = self.board_piece_pos[y][x]
+                    if tar_pc is not None:
+                        if (x, y) != (tar_pc.board_x, tar_pc.board_y):
+                            print("Chess piece not set properly ❌")
+                            print((x,y), (tar_pc.board_x, tar_pc.board_y))
+                        else:
+                            print("Chess piece set properly ✅")
+            # raise "Test done"
+
+    def update_piece_list(self):
+        self.loc_of_piece_list = []
+        for row in range(8):
+            for col in range(8):
+                target_piece = self.board_piece_pos[row][col]
+                if target_piece!=None:
+                    self.loc_of_piece_list.append(target_piece)
 
     def get_pieces(self)->list[list[chess_piece]]:
         # return chess_initial.en_passant
@@ -113,6 +139,7 @@ class ChessGame:
                 target_piece = self.board_piece_pos[row][col]
                 if target_piece!=None:
                     piece_img = pygame.image.load(target_piece.img_file)
+                    target_piece.board_x, target_piece.board_y = col, row
                     img_copy = piece_img.copy()
                     alpha = 255
                     img_copy.fill((255, 255, 255, alpha), None, pygame.BLEND_RGBA_MULT)
@@ -383,7 +410,40 @@ class ChessGame:
                                 target_cell.in_check = True
                                 return (True, new_moves[0]*self.WIDTH/8, new_moves[1]*self.HEIGHT/8)
         return (False, 0, 0)
-                        
+
+    def move_piece(self, piece:chess_piece, to_xy:list):
+        '''This function will move the piece to the given coordinate'''
+        cur_x, cur_y = to_xy[0], to_xy[1] # cur_y means the y, x coordinate which was selected by user
+        x, y = piece.board_x, piece.board_y
+        if x!=cur_x or y!=cur_y:
+            if piece.name == 'king': # check if the case is for castling
+                if cur_x > x:
+                    # right side castle
+                    self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
+                    self.board_piece_pos[y][7] = None
+                else:
+                    # left side castle
+                    self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
+                    self.board_piece_pos[y][0] = None
+            if piece.name == 'pawn': # check if this is promotion
+                if (piece.direction == 1 and cur_y == 7) or (piece.direction == -1 and cur_y == 0):
+                    piece = queen(piece.color)
+                    # self.board_piece_pos[cur_y][cur_x] = queen(piece.color)
+                elif abs(y - cur_y) == 2:
+                    self.enpassant_material = [piece.color, x, y]
+            if self.enpassant_material[0] == self.white_or_black:
+                self.enpassant_material = [None, None, None]
+            
+            piece.set_has_moved(True)
+            print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
+            self.white_or_black = (self.white_or_black+1)%2
+            self.board_piece_pos[cur_y][cur_x] = piece
+            self.board_piece_pos[y][x]= None
+            self.update_piece_list()
+            return True # if piece has moved 
+        else:
+            return False
+
     def run(self):
         selected_piece = None
         moves = None
@@ -397,31 +457,33 @@ class ChessGame:
                     _, cur_x, cur_y = self.get_square_under_mouse()
                     if selected_piece:
                         piece, x, y = selected_piece
-                        if x != cur_x or  y!=cur_y:
-                            self.board_piece_pos[cur_y][cur_x] = piece
-                            if piece.name == 'king' and abs(x - cur_x) == 2:
-                                # castle has happened
-                                if cur_x > x:
-                                    # right side castle
-                                    self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
-                                    self.board_piece_pos[y][7] = None
-                                else:
-                                    # left side castle
-                                    self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
-                                    self.board_piece_pos[y][0] = None
-                            elif piece.name == 'pawn' and abs(y-cur_y) == 2:
-                                piece.has_moved_two = True
-                                self.enpassant_material = [piece.color, cur_x, cur_y]
-                            if self.enpassant_material[0]==self.white_or_black:
-                                self.enpassant_material = [None, None, None]
-                            piece.set_has_moved(True)
-                            print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
-                            print("Now it is turn of ", self.white_or_black)
-                            self.white_or_black = (self.white_or_black + 1) % 2
-                            self.board_piece_pos[y][x] = None
-                            selected_piece = None
-                        else:
-                            pass
+                        res = self.move_piece(piece, (cur_x, cur_y))
+                        if res:selected_piece = None
+                        # if x != cur_x or  y!=cur_y:
+                        #     self.board_piece_pos[cur_y][cur_x] = piece
+                        #     if piece.name == 'king' and abs(x - cur_x) == 2:
+                        #         # castle has happened
+                        #         if cur_x > x:
+                        #             # right side castle
+                        #             self.board_piece_pos[y][x+1] = self.board_piece_pos[y][7]
+                        #             self.board_piece_pos[y][7] = None
+                        #         else:
+                        #             # left side castle
+                        #             self.board_piece_pos[y][x-1] = self.board_piece_pos[y][0]
+                        #             self.board_piece_pos[y][0] = None
+                        #     elif piece.name == 'pawn' and abs(y-cur_y) == 2:
+                        #         piece.has_moved_two = True
+                        #         self.enpassant_material = [piece.color, cur_x, cur_y]
+                        #     if self.enpassant_material[0]==self.white_or_black:
+                        #         self.enpassant_material = [None, None, None]
+                        #     piece.set_has_moved(True)
+                        #     print(f'{piece.name} from ({x}, {y}) to ({cur_x}, {cur_y})')
+                        #     print("Now it is turn of ", self.white_or_black)
+                        #     self.white_or_black = (self.white_or_black + 1) % 2
+                        #     self.board_piece_pos[y][x] = None
+                        #     selected_piece = None
+                        # else:
+                        #     pass
 
                 elif event.type == MOUSEBUTTONDOWN:
                     piece, x, y = self.get_square_under_mouse()
@@ -440,12 +502,12 @@ class ChessGame:
                         #     pass
                         if not valid_move_or_not(x, y):
                             selected_piece = None
-                        else:
-                            if selected_piece[0].name == 'pawn':
-                                if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
-                                    self.board_piece_pos[y][x] = queen(selected_piece[0].color) # TODO: add code to ask to which piece to promote to 
-                                    self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
-                                    selected_piece = None
+                        # else:
+                            # if selected_piece[0].name == 'pawn':
+                            #     if (selected_piece[0].direction == 1 and y == 7) or (selected_piece[0].direction == -1 and y == 0):
+                            #         self.board_piece_pos[y][x] = queen(selected_piece[0].color) # TODO: add code to ask to which piece to promote to 
+                            #         self.board_piece_pos[selected_piece[2]][selected_piece[1]] = None
+                            #         selected_piece = None
                             # pass
                         # if not (x!=selected_piece[1] or y!=selected_piece[2]):
                         #     selected_piece = None

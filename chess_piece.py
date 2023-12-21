@@ -3,6 +3,8 @@ class chess_piece:
         self.name = name
         self.__has_moved = False
         self.__color = color # 0:White, 1 Black
+        self.board_x = 0
+        self.board_y = 0
 
     def __repr__(self) -> str:
         return f"{self.name}, Color: {self.__color}, has_moved: {self.__has_moved}"
