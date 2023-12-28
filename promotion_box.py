@@ -25,6 +25,3 @@ if __name__ == '__main__':
     root = tk.Tk()
     dialog = PromotionDialog(root, "Promotion", ["Queen", "Rook", "Bishop", "Knight"])
     print(dialog.result)
-    # root.mainloop()
-
-    # Now you can print the result after the dialog is closed

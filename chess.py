@@ -461,13 +461,6 @@ class ChessGame:
     def update_UI(self, selected_piece, moves):
         self.screen.fill(self.WHITE)
         self.make_UI_and_place_piece()
-        # check for checkmate
-        # if self.check_for_checkmate(0):
-        #     messagebox.showinfo("Checkmate", "Black wins")
-        #     self.running = False
-        # elif self.check_for_checkmate(1):
-        #     messagebox.showinfo("Checkmate", "White wins")
-        #     self.running = False
 
 
         check_check = self.check_king_check(0)
